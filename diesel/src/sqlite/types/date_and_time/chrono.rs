@@ -7,9 +7,26 @@ use backend::Backend;
 use deserialize::{self, FromSql};
 use serialize::{self, Output, ToSql};
 use sqlite::Sqlite;
-use sql_types::{Date, Text, Time, Timestamp};
+use sql_types::{BigInt, Date, Text, Time, Timestamp};
 
 const SQLITE_DATE_FORMAT: &str = "%F";
+
+impl FromSql<BigInt, Sqlite> for chrono::Duration {
+    fn from_sql(value: Option<&<Sqlite as Backend>::RawValue>) -> deserialize::Result<Self> {
+        let i64_value = <i64 as FromSql<BigInt, Sqlite>>::from_sql(value)?;
+        Ok(chrono::Duration::nanoseconds(i64_value))
+    }
+}
+
+impl ToSql<BigInt, Sqlite> for chrono::Duration {
+    fn to_sql<W: Write>(&self, out: &mut Output<W, Sqlite>) -> serialize::Result {
+        if let Some(num_nanoseconds) = self.num_nanoseconds() {
+            ToSql::<BigInt, Sqlite>::to_sql(&num_nanoseconds, out)
+        } else {
+            Err(format!("{:?} as nanoseconds is too large to fit in an i64", self).into())
+        }
+    }
+}
 
 impl FromSql<Date, Sqlite> for NaiveDate {
     fn from_sql(value: Option<&<Sqlite as Backend>::RawValue>) -> deserialize::Result<Self> {

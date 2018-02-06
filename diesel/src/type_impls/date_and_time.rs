@@ -11,7 +11,12 @@ struct SystemTimeProxy(SystemTime);
 mod chrono {
     extern crate chrono;
     use self::chrono::*;
-    use sql_types::{Date, Time, Timestamp};
+    use sql_types::{BigInt, Date, Time, Timestamp};
+
+    #[derive(FromSqlRow, AsExpression)]
+    #[diesel(foreign_derive)]
+    #[sql_type = "BigInt"]
+    struct DurationProxy(chrono::Duration);
 
     #[derive(FromSqlRow, AsExpression)]
     #[diesel(foreign_derive)]
