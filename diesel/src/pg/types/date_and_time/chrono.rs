@@ -7,15 +7,33 @@ use std::io::Write;
 use self::chrono::{DateTime, Duration, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
 use self::chrono::naive::MAX_DATE;
 
+use backend::Backend;
 use deserialize::{self, FromSql};
 use pg::Pg;
 use serialize::{self, Output, ToSql};
-use sql_types::{Date, Time, Timestamp, Timestamptz};
+use sql_types::{BigInt, Date, Time, Timestamp, Timestamptz};
 use super::{PgDate, PgTime, PgTimestamp};
 
 // Postgres timestamps start from January 1st 2000.
 fn pg_epoch() -> NaiveDateTime {
     NaiveDate::from_ymd(2000, 1, 1).and_hms(0, 0, 0)
+}
+
+impl FromSql<BigInt, Pg> for chrono::Duration {
+    fn from_sql(value: Option<&<Pg as Backend>::RawValue>) -> deserialize::Result<Self> {
+        let i64_value = <i64 as FromSql<BigInt, Pg>>::from_sql(value)?;
+        Ok(chrono::Duration::nanoseconds(i64_value))
+    }
+}
+
+impl ToSql<BigInt, Pg> for chrono::Duration {
+    fn to_sql<W: Write>(&self, out: &mut Output<W, Pg>) -> serialize::Result {
+        if let Some(num_nanoseconds) = self.num_nanoseconds() {
+            ToSql::<BigInt, Pg>::to_sql(&num_nanoseconds, out)
+        } else {
+            Err(format!("{:?} as nanoseconds is too large to fit in an i64", self).into())
+        }
+    }
 }
 
 impl FromSql<Timestamp, Pg> for NaiveDateTime {
