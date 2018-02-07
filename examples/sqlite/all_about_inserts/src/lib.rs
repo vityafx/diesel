@@ -22,6 +22,7 @@ mod schema {
             hair_color -> Nullable<Text>,
             created_at -> Timestamp,
             updated_at -> Timestamp,
+            duration -> BigInt,
         }
     }
 }
@@ -42,6 +43,7 @@ struct User {
     hair_color: Option<String>,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
+    duration: chrono::Duration,
 }
 
 pub fn insert_default_values(conn: &SqliteConnection) -> QueryResult<usize> {
@@ -284,12 +286,13 @@ fn insert_get_results_batch() {
         use schema::users::dsl::*;
 
         let now = select(diesel::dsl::now).get_result::<NaiveDateTime>(&conn)?;
+        let dur = chrono::Duration::weeks(3);
 
         let inserted_users = conn.transaction::<_, Error, _>(|| {
             let inserted_count = insert_into(users)
                 .values(&vec![
-                    (id.eq(1), name.eq("Sean")),
-                    (id.eq(2), name.eq("Tess")),
+                    (id.eq(1), name.eq("Sean"), duration.eq(dur)),
+                    (id.eq(2), name.eq("Tess"), duration.eq(dur)),
                 ])
                 .execute(&conn)?;
 
@@ -309,6 +312,7 @@ fn insert_get_results_batch() {
                 hair_color: None,
                 created_at: now,
                 updated_at: now,
+                duration: dur,
             },
             User {
                 id: 2,
@@ -316,6 +320,7 @@ fn insert_get_results_batch() {
                 hair_color: None,
                 created_at: now,
                 updated_at: now,
+                duration: dur,
             },
         ];
         assert_eq!(expected_users, inserted_users);
@@ -339,7 +344,8 @@ fn examine_sql_from_insert_get_results_batch() {
     let load_query = users.order(id.desc());
     let load_sql = "SELECT `users`.`id`, `users`.`name`, \
                     `users`.`hair_color`, `users`.`created_at`, \
-                    `users`.`updated_at` \
+                    `users`.`updated_at`, \
+                    `users`.`duration` \
                     FROM `users` \
                     ORDER BY `users`.`id` DESC \
                     -- binds: []";
@@ -392,7 +398,8 @@ fn examine_sql_from_insert_get_result() {
     let load_query = users.order(id.desc());
     let load_sql = "SELECT `users`.`id`, `users`.`name`, \
                     `users`.`hair_color`, `users`.`created_at`, \
-                    `users`.`updated_at` \
+                    `users`.`updated_at`, \
+                    `users`.`duration` \
                     FROM `users` \
                     ORDER BY `users`.`id` DESC \
                     -- binds: []";

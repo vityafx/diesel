@@ -1,3 +1,4 @@
+extern crate chrono;
 #[macro_use]
 extern crate diesel;
 #[macro_use]
@@ -21,6 +22,7 @@ mod schema {
             hair_color -> Nullable<Text>,
             created_at -> Timestamp,
             updated_at -> Timestamp,
+            duration -> BigInt,
         }
     }
 }
@@ -41,6 +43,7 @@ struct User {
     hair_color: Option<String>,
     created_at: SystemTime,
     updated_at: SystemTime,
+    duration: chrono::Duration,
 }
 
 pub fn insert_default_values(conn: &PgConnection) -> QueryResult<usize> {
@@ -266,11 +269,12 @@ fn insert_get_results_batch() {
         use schema::users::dsl::*;
 
         let now = select(diesel::dsl::now).get_result::<SystemTime>(&conn)?;
+        let dur = chrono::Duration::weeks(3);
 
         let inserted_users = insert_into(users)
             .values(&vec![
-                (id.eq(1), name.eq("Sean")),
-                (id.eq(2), name.eq("Tess")),
+                (id.eq(1), name.eq("Sean"), duration.eq(dur)),
+                (id.eq(2), name.eq("Tess"), duration.eq(dur)),
             ])
             .get_results(&conn)?;
 
@@ -281,6 +285,7 @@ fn insert_get_results_batch() {
                 hair_color: None,
                 created_at: now,
                 updated_at: now,
+                duration: dur,
             },
             User {
                 id: 2,
@@ -288,6 +293,7 @@ fn insert_get_results_batch() {
                 hair_color: None,
                 created_at: now,
                 updated_at: now,
+                duration: dur,
             },
         ];
         assert_eq!(expected_users, inserted_users);
@@ -306,7 +312,7 @@ fn examine_sql_from_insert_get_results_batch() {
     let sql = "INSERT INTO \"users\" (\"id\", \"name\") VALUES ($1, $2), ($3, $4) \
                RETURNING \"users\".\"id\", \"users\".\"name\", \
                \"users\".\"hair_color\", \"users\".\"created_at\", \
-               \"users\".\"updated_at\" -- binds: [1, \"Sean\", 2, \"Tess\"]";
+               \"users\".\"updated_at\", \"users\".\"duration\" -- binds: [1, \"Sean\", 2, \"Tess\"]";
     assert_eq!(sql, debug_query::<Pg, _>(&query).to_string());
 }
 
@@ -318,9 +324,10 @@ fn insert_get_result() {
         use schema::users::dsl::*;
 
         let now = select(diesel::dsl::now).get_result::<SystemTime>(&conn)?;
+        let dur = chrono::Duration::weeks(3);
 
         let inserted_user = insert_into(users)
-            .values((id.eq(3), name.eq("Ruby")))
+            .values((id.eq(3), name.eq("Ruby"), duration.eq(dur)))
             .get_result(&conn)?;
 
         let expected_user = User {
@@ -329,6 +336,7 @@ fn insert_get_result() {
             hair_color: None,
             created_at: now,
             updated_at: now,
+            duration: dur,
         };
         assert_eq!(expected_user, inserted_user);
 
@@ -347,7 +355,7 @@ fn examine_sql_from_insert_get_result() {
     let sql = "INSERT INTO \"users\" (\"id\", \"name\") VALUES ($1, $2) \
                RETURNING \"users\".\"id\", \"users\".\"name\", \
                \"users\".\"hair_color\", \"users\".\"created_at\", \
-               \"users\".\"updated_at\" -- binds: [3, \"Ruby\"]";
+               \"users\".\"updated_at\", \"users\".\"duration\" -- binds: [3, \"Ruby\"]";
     assert_eq!(sql, debug_query::<Pg, _>(&query).to_string());
 }
 
